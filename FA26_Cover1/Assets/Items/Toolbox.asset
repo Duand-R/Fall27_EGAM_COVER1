@@ -14,5 +14,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ItemData
   itemName: Toolbox
   icon: {fileID: 0}
-  width: 1
-  height: 1
+  width: 2
+  height: 2

@@ -1,88 +1,355 @@
-﻿using TMPro;
+using System.Collections;
+using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class ContainerUI : MonoBehaviour
 {
-    public LootContainer container;
-    public TMP_Text itemsText;
-
-    public Transform itemList;
+    public RectTransform containerItemLayer;
     public ItemButtonUI itemButtonPrefab;
 
     public PlayerInventory playerInventory;
     public InventoryUI inventoryUI;
 
-    private void Start()
-    {
-        RefreshItems();
-    }
+    public Sprite searchIcon;
 
-    public void RefreshItems()
+    [Min(0.1f)]
+    public float revealDelay = 1.3f;
+
+    private const int Columns = 6;
+    private const int Rows = 4;
+    private const float CellStep = 64f;
+    private const float Gap = 4f;
+
+    private LootContainer container;
+    private Coroutine searchRoutine;
+    private GameObject searchMarker;
+
+    private readonly Dictionary<LootContainer.LootSlot, ItemButtonUI> tiles
+        = new Dictionary<LootContainer.LootSlot, ItemButtonUI>();
+
+    public void BeginSearch(LootContainer target)
     {
-        // 检查显示按钮需要的引用
-        if (container == null
-            || itemList == null
-            || itemButtonPrefab == null)
+        EndSearch();
+
+        if (target == null || containerItemLayer == null
+            || itemButtonPrefab == null || playerInventory == null
+            || inventoryUI == null || inventoryUI.itemLayer == null)
         {
-            Debug.LogWarning(
-                "Assign Container, Item List and Item Button Prefab."
-            );
+            Debug.LogWarning("请检查 Container UI 的物品层、预制体和背包引用。");
             return;
         }
 
-        // 先隐藏并删除旧按钮，避免重复显示
-        foreach (Transform child in itemList)
+        container = target;
+
+        // 每个箱子只在第一次打开时排列物品
+        if (container.slots == null)
+        {
+            BuildSlots();
+        }
+
+        // 清掉上一轮的显示，保留箱子里的位置和搜索状态
+        foreach (Transform child in containerItemLayer)
         {
             child.gameObject.SetActive(false);
             Destroy(child.gameObject);
         }
 
-        bool hasItems = false;
+        tiles.Clear();
 
-        // 为箱子中的每件物品生成一个按钮
+        foreach (LootContainer.LootSlot slot in container.slots)
+        {
+            CreateTile(slot);
+        }
+
+
+
+
+        if (container.slots.Exists(slot => !slot.revealed))
+        {
+            searchRoutine = StartCoroutine(RevealItems());
+        }
+    }
+
+    public void EndSearch()
+    {
+        if (searchRoutine != null)
+        {
+            StopCoroutine(searchRoutine);
+            searchRoutine = null;
+        }
+
+        ClearSearchMarker();
+    }
+
+    private void OnDisable()
+    {
+        EndSearch();
+    }
+
+    private void BuildSlots()
+    {
+        container.slots = new List<LootContainer.LootSlot>();
+
         foreach (ItemData item in container.items)
         {
-            if (item == null)
+            if (item == null || item.width < 1 || item.height < 1)
             {
                 continue;
             }
 
-            ItemButtonUI button =
-                Instantiate(itemButtonPrefab, itemList);
-
-            button.Setup(item, TakeItem);
-            hasItems = true;
-        }
-
-        // 原来的文字区域只用于显示空箱提示
-        if (itemsText != null)
-        {
-            itemsText.text = "Empty";
-            itemsText.gameObject.SetActive(!hasItems);
+            if (TryFindSpace(item, out RectInt area))
+            {
+                container.slots.Add(new LootContainer.LootSlot
+                {
+                    item = item,
+                    area = area
+                });
+            }
+            else
+            {
+                Debug.LogWarning($"箱子格子放不下 {item.itemName}。");
+            }
         }
     }
 
-    private void TakeItem(ItemData item)
+    private bool TryFindSpace(ItemData item, out RectInt area)
     {
-        // 确认玩家背包和界面已经连接
-        if (playerInventory == null || inventoryUI == null)
+        // 从左上角逐行找一块不重叠的空位
+        for (int y = 0; y <= Rows - item.height; y++)
         {
-            Debug.LogWarning(
-                "Assign Player Inventory and Inventory UI."
-            );
+            for (int x = 0; x <= Columns - item.width; x++)
+            {
+                RectInt candidate = new RectInt(x, y, item.width, item.height);
+
+                if (!container.slots.Exists(slot => slot.area.Overlaps(candidate)))
+                {
+                    area = candidate;
+                    return true;
+                }
+            }
+        }
+
+        area = default;
+        return false;
+    }
+
+    private void CreateTile(LootContainer.LootSlot slot)
+    {
+        ItemButtonUI tile = Instantiate(itemButtonPrefab, containerItemLayer);
+
+        // 绑定这件物品的位置记录，而不是只靠物品名称查找
+        tile.Setup(
+            slot.item,
+            item => TakeSlot(slot, null),
+            (item, x, y) => TakeSlot(slot, new Vector2Int(x, y)),
+            inventoryUI.itemLayer
+        );
+
+        RectInt area = slot.area;
+        RectTransform rect = (RectTransform)tile.transform;
+        rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0f, 1f);
+        rect.anchoredPosition = new Vector2(area.x * CellStep, -area.y * CellStep);
+        rect.sizeDelta = new Vector2(
+            area.width * CellStep - Gap,
+            area.height * CellStep - Gap
+        );
+
+        Image background = tile.GetComponent<Image>();
+        background.sprite = null;
+
+        tile.GetComponent<Button>().transition = Selectable.Transition.None;
+
+        TMP_Text label = tile.GetComponentInChildren<TMP_Text>(true);
+        label.fontSize = 13f;
+        label.raycastTarget = false;
+
+        tile.gameObject.AddComponent<ItemHoverInfo>().Setup(slot.item);
+        tiles.Add(slot, tile);
+        SetRevealed(tile, slot.item, slot.revealed);
+    }
+
+    private void SetRevealed(ItemButtonUI tile, ItemData item, bool revealed)
+    {
+        Image background = tile.GetComponent<Image>();
+        TMP_Text label = tile.GetComponentInChildren<TMP_Text>(true);
+
+        // 默认显示未知物品的深灰色
+        background.color = new Color(0.25f, 0.27f, 0.30f);
+
+        if (revealed)
+        {
+            // 搜完才显示稀有度颜色和价值
+            switch (item.rarity)
+            {
+                case "rare":
+                    background.color = new Color(0.55f, 0.35f, 0.10f);
+                    break;
+                case "uncommon":
+                    background.color = new Color(0.18f, 0.36f, 0.60f);
+                    break;
+                default:
+                    background.color = new Color(0.28f, 0.34f, 0.40f);
+                    break;
+            }
+
+label.text = item.itemName;
+            label.color = Color.white;
+        }
+
+        // 只有搜完的物品才能双击或拖动
+        label.gameObject.SetActive(revealed);
+        background.raycastTarget = revealed;
+        tile.GetComponent<Button>().interactable = revealed;
+        tile.enabled = revealed;
+    }
+
+    private IEnumerator RevealItems()
+    {
+        while (true)
+        {
+            LootContainer.LootSlot slot =
+                container.slots.Find(item => !item.revealed);
+
+            if (slot == null)
+            {
+                break;
+            }
+
+            ItemButtonUI tile = tiles[slot];
+
+            ShowSearchMarker(tile.transform);
+
+            float elapsed = 0f;
+
+            while (elapsed < revealDelay)
+            {
+                if (searchMarker != null)
+                {
+                    // 放大镜保持朝向，沿着小圆圈移动
+                    float angle = -elapsed * 2f * Mathf.PI;
+                    RectTransform marker = (RectTransform)searchMarker.transform;
+                    marker.anchoredPosition = new Vector2(
+                        Mathf.Cos(angle) * 6f,
+                        Mathf.Sin(angle) * 6f
+                    );
+                }
+
+                yield return null;
+                elapsed += Time.unscaledDeltaTime;
+            }
+
+            ClearSearchMarker();
+
+            // 不重建物品块，只在原位置揭晓
+            slot.revealed = true;
+            SetRevealed(tile, slot.item, true);
+        }
+
+        searchRoutine = null;
+    }
+
+    private void ShowSearchMarker(Transform parent)
+    {
+        if (searchIcon == null)
+        {
             return;
         }
 
-        // 只有成功从箱子移除，才加入玩家背包
-        if (!container.items.Remove(item))
+        searchMarker = new GameObject("SearchMarker", typeof(Image));
+        searchMarker.transform.SetParent(parent, false);
+
+        Image image = searchMarker.GetComponent<Image>();
+        image.sprite = searchIcon;
+        image.preserveAspect = true;
+        image.raycastTarget = false;
+
+        RectTransform rect = image.rectTransform;
+        rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.anchoredPosition = Vector2.zero;
+        rect.sizeDelta = new Vector2(20f, 20f);
+    }
+
+    private void ClearSearchMarker()
+    {
+        if (searchMarker != null)
+        {
+            searchMarker.SetActive(false);
+            Destroy(searchMarker);
+            searchMarker = null;
+        }
+    }
+
+    private void TakeSlot(LootContainer.LootSlot slot, Vector2Int? target)
+    {
+        if (!slot.revealed || !tiles.TryGetValue(slot, out ItemButtonUI tile))
         {
             return;
         }
 
-        playerInventory.items.Add(item);
+        // 双击自动找位置，拖拽使用玩家选中的格子
+        bool placed = target.HasValue
+            ? playerInventory.TryAddAt(slot.item, target.Value.x, target.Value.y)
+            : playerInventory.TryAdd(slot.item);
 
-        // 同时刷新箱子和背包的显示
-        RefreshItems();
+        if (!placed)
+        {
+            return;
+        }
+
+        // 背包收下以后，才移除箱子里的物品
+        container.slots.Remove(slot);
+        container.items.Remove(slot.item);
+        tiles.Remove(slot);
+
+        tile.gameObject.SetActive(false);
+        Destroy(tile.gameObject);
+
         inventoryUI.RefreshItems();
+    }
+
+    public bool TryReturnItem(
+    PlayerInventory.Placement placement,
+    Vector2 screenPosition,
+    Camera eventCamera)
+    {
+        // 箱子没打开时，不能把物品放回去
+        if (container == null || containerItemLayer == null
+            || !containerItemLayer.gameObject.activeInHierarchy)
+        {
+            return false;
+        }
+
+        // 松手的位置必须在箱子的格子区域里
+        if (!RectTransformUtility.RectangleContainsScreenPoint(
+            containerItemLayer, screenPosition, eventCamera))
+        {
+            return false;
+        }
+
+        ItemData item = placement.item;
+
+        // 先确认箱子放得下，再从背包移除
+        if (!TryFindSpace(item, out RectInt area)
+            || !playerInventory.TryRemove(placement))
+        {
+            return false;
+        }
+
+        // 玩家已经知道这是什么，所以放回去不用重新搜索
+        LootContainer.LootSlot slot = new LootContainer.LootSlot
+        {
+            item = item,
+            area = area,
+            revealed = true
+        };
+
+        container.items.Add(item);
+        container.slots.Add(slot);
+
+        CreateTile(slot);
+        inventoryUI.RefreshItems();
+        return true;
     }
 }

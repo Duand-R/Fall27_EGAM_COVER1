@@ -106,19 +106,16 @@ public class PlayerInteraction : MonoBehaviour
 
     private void OpenContainer(LootContainer target)
     {
-        // 读取当前箱子的物品
-        containerUI.container = target;
-        containerUI.RefreshItems();
-
-        // 同时打开箱子和玩家背包
         containerPanel.SetActive(true);
         backpackPanel.SetActive(true);
 
         SetInventoryMode(true);
+        containerUI.BeginSearch(target);
     }
 
     public void CloseInventory()
     {
+        containerUI.EndSearch();
         // 关闭所有库存窗口
         containerPanel.SetActive(false);
         backpackPanel.SetActive(false);

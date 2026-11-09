@@ -1,0 +1,180 @@
+{
+  "minItems": 1,
+  "maxItems": 5,
+  "rarityWeights": [
+    {
+      "rarity": "common",
+      "weight": 70
+    },
+    {
+      "rarity": "uncommon",
+      "weight": 20
+    },
+    {
+      "rarity": "rare",
+      "weight": 10
+    }
+  ],
+  "items": [
+    {
+      "id": "bandage",
+      "name": "Bandage",
+      "value": 100,
+      "width": 1,
+      "height": 1,
+      "rarity": "common"
+    },
+    {
+      "id": "battery",
+      "name": "Battery",
+      "value": 300,
+      "width": 1,
+      "height": 2,
+      "rarity": "common"
+    },
+    {
+      "id": "toolbox",
+      "name": "Toolbox",
+      "value": 950,
+      "width": 2,
+      "height": 2,
+      "rarity": "uncommon"
+    },
+    {
+      "id": "gold_watch",
+      "name": "Gold Watch",
+      "value": 5000,
+      "width": 1,
+      "height": 1,
+      "rarity": "rare"
+    },
+    {
+      "id": "duct_tape",
+      "name": "Duct Tape",
+      "value": 120,
+      "width": 1,
+      "height": 1,
+      "rarity": "common"
+    },
+    {
+      "id": "bolts",
+      "name": "Box of Bolts",
+      "value": 150,
+      "width": 1,
+      "height": 1,
+      "rarity": "common"
+    },
+    {
+      "id": "water_bottle",
+      "name": "Water Bottle",
+      "value": 180,
+      "width": 1,
+      "height": 2,
+      "rarity": "common"
+    },
+    {
+      "id": "wire_spool",
+      "name": "Wire Spool",
+      "value": 240,
+      "width": 1,
+      "height": 1,
+      "rarity": "common"
+    },
+    {
+      "id": "circuit_board",
+      "name": "Circuit Board",
+      "value": 350,
+      "width": 2,
+      "height": 1,
+      "rarity": "common"
+    },
+    {
+      "id": "canned_food",
+      "name": "Canned Food",
+      "value": 160,
+      "width": 1,
+      "height": 1,
+      "rarity": "common"
+    },
+    {
+      "id": "flashlight",
+      "name": "Flashlight",
+      "value": 280,
+      "width": 1,
+      "height": 2,
+      "rarity": "common"
+    },
+    {
+      "id": "first_aid_kit",
+      "name": "First Aid Kit",
+      "value": 680,
+      "width": 2,
+      "height": 2,
+      "rarity": "uncommon"
+    },
+    {
+      "id": "radio",
+      "name": "Handheld Radio",
+      "value": 800,
+      "width": 1,
+      "height": 2,
+      "rarity": "uncommon"
+    },
+    {
+      "id": "camera",
+      "name": "Digital Camera",
+      "value": 1100,
+      "width": 2,
+      "height": 1,
+      "rarity": "uncommon"
+    },
+    {
+      "id": "portable_drive",
+      "name": "Portable Drive",
+      "value": 1250,
+      "width": 1,
+      "height": 1,
+      "rarity": "uncommon"
+    },
+    {
+      "id": "power_module",
+      "name": "Power Module",
+      "value": 1400,
+      "width": 2,
+      "height": 2,
+      "rarity": "uncommon"
+    },
+    {
+      "id": "encrypted_drive",
+      "name": "Encrypted Drive",
+      "value": 6800,
+      "width": 1,
+      "height": 1,
+      "rarity": "rare"
+    },
+    {
+      "id": "gold_bar",
+      "name": "Gold Bar",
+      "value": 8200,
+      "width": 2,
+      "height": 1,
+      "rarity": "rare"
+    },
+    {
+      "id": "prototype_chip",
+      "name": "Prototype Chip",
+      "value": 9600,
+      "width": 1,
+      "height": 1,
+      "rarity": "rare"
+    },
+    {
+      "id": "precision_optics",
+      "name": "Precision Optics",
+      "value": 11200,
+      "width": 2,
+      "height": 2,
+      "rarity": "rare"
+    }
+  ]
+}

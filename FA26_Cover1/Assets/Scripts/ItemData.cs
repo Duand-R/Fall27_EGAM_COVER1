@@ -7,6 +7,9 @@ public class ItemData : ScriptableObject
     public string itemName;
 
     public Sprite icon;
+    public string id;
+    public int value;
+    public string rarity;
 
     [Header("Inventory Size")]
     [Min(1)]
