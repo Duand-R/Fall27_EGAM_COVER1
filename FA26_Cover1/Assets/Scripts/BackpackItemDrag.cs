@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.EventSystems;
 
 public class BackpackItemDrag : MonoBehaviour,
@@ -13,6 +13,7 @@ public class BackpackItemDrag : MonoBehaviour,
     private bool dragging;
     private Vector2 startPosition;
     private Vector2 startPointer;
+    private Vector2Int grabbedCell;
 
     public ContainerUI containerUI;
 
@@ -36,12 +37,20 @@ public class BackpackItemDrag : MonoBehaviour,
             return;
         }
 
-        // 记录起点，避免鼠标抓住物品中间时发生跳动
-        dragging = GetPointerPosition(eventData, out startPointer);
+        // 用按下时的位置，记住鼠标抓住了物品的哪一格
+        dragging = GetPointerPosition(
+            eventData.pressPosition, eventData.pressEventCamera, out startPointer);
         startPosition = tile.anchoredPosition;
 
         if (dragging)
         {
+            Vector2 offset = ToGridPosition(startPointer) -
+                new Vector2(startPosition.x, -startPosition.y);
+
+            grabbedCell = new Vector2Int(
+                Mathf.Clamp(Mathf.FloorToInt(offset.x / cellPitch), 0, placement.cells.width - 1),
+                Mathf.Clamp(Mathf.FloorToInt(offset.y / cellPitch), 0, placement.cells.height - 1)
+            );
             tile.SetAsLastSibling();
         }
     }
@@ -67,19 +76,22 @@ public class BackpackItemDrag : MonoBehaviour,
         // 先检查是不是拖回了右侧箱子
         if (containerUI != null
             && containerUI.TryReturnItem(
-                placement, eventData.position, eventData.pressEventCamera))
+                placement, eventData.position, eventData.pressEventCamera, grabbedCell))
         {
             return;
         }
 
         if (GetPointerPosition(eventData, out Vector2 pointer))
         {
-            Vector2 position = startPosition + pointer - startPointer;
-            int x = Mathf.RoundToInt(position.x / cellPitch);
-            int y = Mathf.RoundToInt(-position.y / cellPitch);
-
-            // 只有位置合法时才更新背包数据
-            inventory.TryMove(placement, x, y);
+            // 让抓住的那一格对准松手时鼠标所在的格子
+            Vector2 position = ToGridPosition(pointer);
+            if (position.x >= 0f && position.y >= 0f
+                && position.x < layer.rect.width && position.y < layer.rect.height)
+            {
+                int x = Mathf.FloorToInt(position.x / cellPitch) - grabbedCell.x;
+                int y = Mathf.FloorToInt(position.y / cellPitch) - grabbedCell.y;
+                inventory.TryMove(placement, x, y);
+            }
         }
 
         // 按数据中的位置对齐；放置失败时，数据仍是原位置
@@ -92,8 +104,17 @@ public class BackpackItemDrag : MonoBehaviour,
     private bool GetPointerPosition(
         PointerEventData eventData, out Vector2 position)
     {
+        return GetPointerPosition(eventData.position, eventData.pressEventCamera, out position);
+    }
+
+    private bool GetPointerPosition(Vector2 screenPosition, Camera eventCamera, out Vector2 position)
+    {
         return RectTransformUtility.ScreenPointToLocalPointInRectangle(
-            layer, eventData.position, eventData.pressEventCamera, out position
-        );
+            layer, screenPosition, eventCamera, out position);
+    }
+
+    private Vector2 ToGridPosition(Vector2 point)
+    {
+        return new Vector2(point.x - layer.rect.xMin, layer.rect.yMax - point.y);
     }
 }

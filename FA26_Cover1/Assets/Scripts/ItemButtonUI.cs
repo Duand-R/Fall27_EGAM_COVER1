@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -7,25 +7,34 @@ using UnityEngine.UI;
 public class ItemButtonUI : MonoBehaviour,
     IPointerClickHandler, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
-    private const float CellSize = 60f;
     private const float CellPitch = 64f;
 
     private ItemData item;
     private Action<ItemData> onTake;
     private Action<ItemData, int, int> onDrop;
     private RectTransform itemLayer;
+    private RectTransform containerLayer;
+    private RectTransform previewLayer;
+    private Action<int, int> onMoveInContainer;
     private RectTransform ghost;
+    private CanvasGroup sourceVisual;
+    private float originalAlpha;
+    private Vector2 grabOffset;
+    private Vector2Int grabbedCell;
 
     public void Setup(
         ItemData itemData,
         Action<ItemData> takeAction,
         Action<ItemData, int, int> dropAction,
-        RectTransform backpackLayer)
+        RectTransform backpackLayer,
+        Action<int, int> moveInContainer)
     {
         item = itemData;
         onTake = takeAction;
         onDrop = dropAction;
         itemLayer = backpackLayer;
+        containerLayer = (RectTransform)transform.parent;
+        onMoveInContainer = moveInContainer;
 
         TMP_Text label = GetComponentInChildren<TMP_Text>();
         label.text = $"{item.itemName}  ({item.width} x {item.height})";
@@ -49,29 +58,60 @@ public class ItemButtonUI : MonoBehaviour,
             return;
         }
 
-        // 创建临时预览，不移动右侧按钮，也不修改物品数据
+        RectTransform source = (RectTransform)transform;
+        Canvas canvas = GetComponentInParent<Canvas>();
+        if (canvas == null || !GetGridPosition(source, eventData.pressPosition,
+            eventData.pressEventCamera, out grabOffset))
+        {
+            return;
+        }
+
+        grabbedCell = new Vector2Int(
+            Mathf.Clamp(Mathf.FloorToInt(grabOffset.x / CellPitch), 0, item.width - 1),
+            Mathf.Clamp(Mathf.FloorToInt(grabOffset.y / CellPitch), 0, item.height - 1)
+        );
+
+        // 用和原物品一样的外观拖动，原格暂时隐藏
+        previewLayer = (RectTransform)canvas.rootCanvas.transform;
         GameObject preview = new GameObject("DragPreview", typeof(Image));
-        preview.transform.SetParent(itemLayer, false);
+        preview.transform.SetParent(previewLayer, false);
 
         Image image = preview.GetComponent<Image>();
-        image.color = new Color(0.22f, 0.55f, 0.72f, 0.65f);
+        Image original = GetComponent<Image>();
+        image.sprite = original.sprite;
+        image.color = original.color;
         image.raycastTarget = false;
 
         ghost = image.rectTransform;
         ghost.anchorMin = ghost.anchorMax = ghost.pivot = new Vector2(0f, 1f);
-        ghost.sizeDelta = new Vector2(
-            item.width * CellPitch - (CellPitch - CellSize),
-            item.height * CellPitch - (CellPitch - CellSize)
-        );
+        ghost.sizeDelta = source.rect.size;
+
+        TMP_Text label = GetComponentInChildren<TMP_Text>();
+        if (label != null)
+        {
+            TMP_Text previewLabel = Instantiate(label, ghost, false);
+            previewLabel.raycastTarget = false;
+        }
+
+        sourceVisual = GetComponent<CanvasGroup>();
+        if (sourceVisual == null)
+        {
+            sourceVisual = gameObject.AddComponent<CanvasGroup>();
+        }
+
+        originalAlpha = sourceVisual.alpha;
+        sourceVisual.alpha = 0f;
 
         OnDrag(eventData);
     }
 
     public void OnDrag(PointerEventData eventData)
     {
-        if (ghost != null && GetGridPosition(eventData, out Vector2 position))
+        if (ghost != null && GetGridPosition(previewLayer, eventData.position,
+            eventData.pressEventCamera, out Vector2 position))
         {
-            ghost.anchoredPosition = new Vector2(position.x, -position.y);
+            Vector2 topLeft = position - grabOffset;
+            ghost.anchoredPosition = new Vector2(topLeft.x, -topLeft.y);
         }
     }
 
@@ -84,41 +124,52 @@ public class ItemButtonUI : MonoBehaviour,
 
         ClearPreview();
 
-        if (!GetGridPosition(eventData, out Vector2 position))
+        // 优先检查右侧箱子，再检查左侧背包
+        if (TryGetCell(containerLayer, eventData.position, eventData.pressEventCamera,
+            out Vector2Int containerCell))
         {
-            return;
+            onMoveInContainer?.Invoke(containerCell.x - grabbedCell.x, containerCell.y - grabbedCell.y);
         }
-
-        // 鼠标必须在背包格子区域内
-        if (position.x < 0f || position.y < 0f
-            || position.x >= itemLayer.rect.width
-            || position.y >= itemLayer.rect.height)
+        else if (TryGetCell(itemLayer, eventData.position, eventData.pressEventCamera,
+            out Vector2Int backpackCell))
         {
-            return;
+            onDrop?.Invoke(item, backpackCell.x - grabbedCell.x, backpackCell.y - grabbedCell.y);
         }
-
-        int x = Mathf.FloorToInt(position.x / CellPitch);
-        int y = Mathf.FloorToInt(position.y / CellPitch);
-        onDrop?.Invoke(item, x, y);
     }
 
-    private bool GetGridPosition(PointerEventData eventData, out Vector2 position)
+    internal static bool TryGetCell(
+        RectTransform layer, Vector2 screenPosition, Camera eventCamera, out Vector2Int cell)
     {
-        position = Vector2.zero;
+        cell = default;
 
-        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
-            itemLayer, eventData.position, eventData.pressEventCamera,
-            out Vector2 local))
+        if (layer == null || !layer.gameObject.activeInHierarchy
+            || !GetGridPosition(layer, screenPosition, eventCamera, out Vector2 position)
+            || position.x < 0f || position.y < 0f
+            || position.x >= layer.rect.width || position.y >= layer.rect.height)
         {
             return false;
         }
 
-        // 转为从背包左上角向右、向下计算的坐标
-        position = new Vector2(
-            local.x - itemLayer.rect.xMin,
-            itemLayer.rect.yMax - local.y
+        cell = new Vector2Int(
+            Mathf.FloorToInt(position.x / CellPitch),
+            Mathf.FloorToInt(position.y / CellPitch)
         );
+        return true;
+    }
 
+    private static bool GetGridPosition(
+        RectTransform layer, Vector2 screenPosition, Camera eventCamera, out Vector2 position)
+    {
+        position = Vector2.zero;
+
+        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
+            layer, screenPosition, eventCamera, out Vector2 local))
+        {
+            return false;
+        }
+
+        // 转成以左上角为原点的坐标
+        position = new Vector2(local.x - layer.rect.xMin, layer.rect.yMax - local.y);
         return true;
     }
 
@@ -129,8 +180,15 @@ public class ItemButtonUI : MonoBehaviour,
 
     private void ClearPreview()
     {
+        if (sourceVisual != null)
+        {
+            sourceVisual.alpha = originalAlpha;
+            sourceVisual = null;
+        }
+
         if (ghost != null)
         {
+            ghost.gameObject.SetActive(false);
             Destroy(ghost.gameObject);
             ghost = null;
         }

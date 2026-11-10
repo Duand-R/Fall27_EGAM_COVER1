@@ -175,6 +175,166 @@
       "width": 2,
       "height": 2,
       "rarity": "rare"
+    },
+    {
+      "id": "cloth_roll",
+      "name": "Cloth Roll",
+      "value": 90,
+      "width": 1,
+      "height": 1,
+      "rarity": "common"
+    },
+    {
+      "id": "nuts_and_washers",
+      "name": "Nuts and Washers",
+      "value": 130,
+      "width": 1,
+      "height": 1,
+      "rarity": "common"
+    },
+    {
+      "id": "soap_bar",
+      "name": "Soap Bar",
+      "value": 110,
+      "width": 1,
+      "height": 1,
+      "rarity": "common"
+    },
+    {
+      "id": "snack_pack",
+      "name": "Snack Pack",
+      "value": 140,
+      "width": 1,
+      "height": 1,
+      "rarity": "common"
+    },
+    {
+      "id": "notebook",
+      "name": "Notebook",
+      "value": 170,
+      "width": 1,
+      "height": 2,
+      "rarity": "common"
+    },
+    {
+      "id": "pliers",
+      "name": "Pliers",
+      "value": 210,
+      "width": 1,
+      "height": 2,
+      "rarity": "common"
+    },
+    {
+      "id": "measuring_tape",
+      "name": "Measuring Tape",
+      "value": 220,
+      "width": 1,
+      "height": 1,
+      "rarity": "common"
+    },
+    {
+      "id": "spare_fuse",
+      "name": "Spare Fuse",
+      "value": 190,
+      "width": 1,
+      "height": 1,
+      "rarity": "common"
+    },
+    {
+      "id": "medical_scissors",
+      "name": "Medical Scissors",
+      "value": 260,
+      "width": 1,
+      "height": 2,
+      "rarity": "uncommon"
+    },
+    {
+      "id": "signal_meter",
+      "name": "Signal Meter",
+      "value": 1250,
+      "width": 2,
+      "height": 1,
+      "rarity": "uncommon"
+    },
+    {
+      "id": "multimeter",
+      "name": "Multimeter",
+      "value": 1050,
+      "width": 1,
+      "height": 2,
+      "rarity": "uncommon"
+    },
+    {
+      "id": "motor_assembly",
+      "name": "Motor Assembly",
+      "value": 1550,
+      "width": 2,
+      "height": 2,
+      "rarity": "uncommon"
+    },
+    {
+      "id": "industrial_filter",
+      "name": "Industrial Filter",
+      "value": 870,
+      "width": 2,
+      "height": 1,
+      "rarity": "uncommon"
+    },
+    {
+      "id": "optical_sensor",
+      "name": "Optical Sensor",
+      "value": 1500,
+      "width": 1,
+      "height": 1,
+      "rarity": "uncommon"
+    },
+    {
+      "id": "field_recorder",
+      "name": "Field Recorder",
+      "value": 1600,
+      "width": 2,
+      "height": 1,
+      "rarity": "uncommon"
+    },
+    {
+      "id": "vintage_coin",
+      "name": "Vintage Coin",
+      "value": 4200,
+      "width": 1,
+      "height": 1,
+      "rarity": "rare"
+    },
+    {
+      "id": "ceramic_artifact",
+      "name": "Ceramic Artifact",
+      "value": 7200,
+      "width": 1,
+      "height": 2,
+      "rarity": "rare"
+    },
+    {
+      "id": "research_module",
+      "name": "Research Module",
+      "value": 9800,
+      "width": 2,
+      "height": 2,
+      "rarity": "rare"
+    },
+    {
+      "id": "sapphire_pendant",
+      "name": "Sapphire Pendant",
+      "value": 7800,
+      "width": 1,
+      "height": 1,
+      "rarity": "rare"
+    },
+    {
+      "id": "navigation_core",
+      "name": "Navigation Core",
+      "value": 12500,
+      "width": 2,
+      "height": 2,
+      "rarity": "rare"
     }
   ]
 }

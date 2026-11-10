@@ -14,8 +14,10 @@ public class ContainerUI : MonoBehaviour
 
     public Sprite searchIcon;
 
-    [Min(0.1f)]
-    public float revealDelay = 1.3f;
+    [Header("Search Duration")]
+    [Min(0.1f)] public float commonSearchTime = 1.1f;
+    [Min(0.1f)] public float uncommonSearchTime = 1.6f;
+    [Min(0.1f)] public float rareSearchTime = 2.4f;
 
     private const int Columns = 6;
     private const int Rows = 4;
@@ -42,6 +44,7 @@ public class ContainerUI : MonoBehaviour
         }
 
         container = target;
+        InventoryUI.AlignItemLayer(containerItemLayer);
 
         // 每个箱子只在第一次打开时排列物品
         if (container.slots == null)
@@ -144,7 +147,8 @@ public class ContainerUI : MonoBehaviour
             slot.item,
             item => TakeSlot(slot, null),
             (item, x, y) => TakeSlot(slot, new Vector2Int(x, y)),
-            inventoryUI.itemLayer
+            inventoryUI.itemLayer,
+            (x, y) => MoveSlot(slot, x, y)
         );
 
         RectInt area = slot.area;
@@ -223,7 +227,14 @@ label.text = item.itemName;
 
             float elapsed = 0f;
 
-            while (elapsed < revealDelay)
+            // 稀有度只影响等待时长，不改变放大镜的转速
+            float duration = commonSearchTime;
+            if (slot.item.rarity == "uncommon")
+                duration = uncommonSearchTime;
+            else if (slot.item.rarity == "rare")
+                duration = rareSearchTime;
+
+            while (elapsed < duration)
             {
                 if (searchMarker != null)
                 {
@@ -309,33 +320,59 @@ label.text = item.itemName;
         inventoryUI.RefreshItems();
     }
 
-    public bool TryReturnItem(
-    PlayerInventory.Placement placement,
-    Vector2 screenPosition,
-    Camera eventCamera)
+    private void MoveSlot(LootContainer.LootSlot slot, int x, int y)
     {
-        // 箱子没打开时，不能把物品放回去
-        if (container == null || containerItemLayer == null
-            || !containerItemLayer.gameObject.activeInHierarchy)
+        if (!slot.revealed || !tiles.TryGetValue(slot, out ItemButtonUI tile)
+            || !TryGetDropArea(slot.item, x, y, slot, out RectInt area))
+        {
+            return;
+        }
+
+        // 只移动这一件，不重新排列其他物品或打断搜索
+        slot.area = area;
+        RectTransform rect = (RectTransform)tile.transform;
+        rect.anchoredPosition = new Vector2(area.x * CellStep, -area.y * CellStep);
+    }
+
+    private bool TryGetDropArea(
+        ItemData item, int x, int y, LootContainer.LootSlot ignoredSlot, out RectInt area)
+    {
+        area = default;
+        if (container == null || container.slots == null || item == null
+            || item.width < 1 || item.height < 1
+            || x < 0 || y < 0 || x > Columns - item.width || y > Rows - item.height)
         {
             return false;
         }
 
-        // 松手的位置必须在箱子的格子区域里
-        if (!RectTransformUtility.RectangleContainsScreenPoint(
-            containerItemLayer, screenPosition, eventCamera))
+        RectInt candidate = new RectInt(x, y, item.width, item.height);
+        if (container.slots.Exists(slot => slot != ignoredSlot && slot.area.Overlaps(candidate)))
+        {
+            return false;
+        }
+
+        area = candidate;
+        return true;
+    }
+
+    public bool TryReturnItem(
+        PlayerInventory.Placement placement,
+        Vector2 screenPosition,
+        Camera eventCamera,
+        Vector2Int grabbedCell)
+    {
+        // 先验证落点，再从背包移除；失败时保留原位置
+        if (placement == null || playerInventory == null
+            || !ItemButtonUI.TryGetCell(containerItemLayer, screenPosition, eventCamera,
+                out Vector2Int cell)
+            || !TryGetDropArea(placement.item, cell.x - grabbedCell.x, cell.y - grabbedCell.y,
+                null, out RectInt area)
+            || !playerInventory.TryRemove(placement))
         {
             return false;
         }
 
         ItemData item = placement.item;
-
-        // 先确认箱子放得下，再从背包移除
-        if (!TryFindSpace(item, out RectInt area)
-            || !playerInventory.TryRemove(placement))
-        {
-            return false;
-        }
 
         // 玩家已经知道这是什么，所以放回去不用重新搜索
         LootContainer.LootSlot slot = new LootContainer.LootSlot

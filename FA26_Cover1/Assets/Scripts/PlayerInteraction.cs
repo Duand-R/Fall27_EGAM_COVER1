@@ -1,5 +1,6 @@
-﻿using TMPro;
+using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class PlayerInteraction : MonoBehaviour
 {
@@ -37,6 +38,14 @@ public class PlayerInteraction : MonoBehaviour
 
     private void Update()
     {
+        // 即使背包开着，也可以重开当前关卡
+        if (Input.GetKeyDown(KeyCode.R))
+        {
+            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+            return;
+        }
+
+
         // Tab：关闭当前界面，或单独打开背包
         if (Input.GetKeyDown(KeyCode.Tab))
         {
@@ -106,6 +115,7 @@ public class PlayerInteraction : MonoBehaviour
 
     private void OpenContainer(LootContainer target)
     {
+        target.OpenLid();
         containerPanel.SetActive(true);
         backpackPanel.SetActive(true);
 

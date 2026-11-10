@@ -1,4 +1,4 @@
-﻿using TMPro;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -24,6 +24,8 @@ public class InventoryUI : MonoBehaviour
             Debug.LogWarning("请给 InventoryUI 指定 Player Inventory 和 Item Layer。");
             return;
         }
+
+        AlignItemLayer(itemLayer);
 
         // 清除旧的物品显示，保留 SlotGrid 中的空格背景
         foreach (Transform child in itemLayer)
@@ -89,6 +91,24 @@ public class InventoryUI : MonoBehaviour
             text.rectTransform.offsetMin = Vector2.zero;
             text.rectTransform.offsetMax = Vector2.zero;
         }
+    }
+
+    internal static void AlignItemLayer(RectTransform layer)
+    {
+        // 物品和拖放都以空格背景的左上角为准
+        RectTransform grid = layer.parent.Find("SlotGrid") as RectTransform;
+        if (grid == null)
+        {
+            return;
+        }
+
+        layer.anchorMin = grid.anchorMin;
+        layer.anchorMax = grid.anchorMax;
+        layer.pivot = grid.pivot;
+        layer.sizeDelta = grid.sizeDelta;
+        layer.anchoredPosition3D = grid.anchoredPosition3D;
+        layer.localRotation = grid.localRotation;
+        layer.localScale = grid.localScale;
     }
 
     private void RefreshTotalValue()
